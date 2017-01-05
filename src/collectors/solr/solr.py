@@ -35,6 +35,7 @@ class SolrCollector(diamond.collector.Collector):
             'port': "",
             'core': "Which core info should collect (default: all cores)",
             'solrpath': "solr URL path (default /solr)",
+            'queryhandleritems': "List of queryhandlers to collect",
             'stats': "Available stats: \n"
             " - core (Core stats)\n"
             " - response (Ping response stats)\n"
@@ -56,6 +57,7 @@ class SolrCollector(diamond.collector.Collector):
             'port':     8983,
             'path':     'solr',
             'solrpath': '/solr',
+            'queryhandleritems': [], 
             'core':     None,
             'stats':    ['jvm', 'core', 'response',
                          'query', 'update', 'cache'],
@@ -148,14 +150,20 @@ class SolrCollector(diamond.collector.Collector):
                 queryhandlers = stats["QUERYHANDLER"]
                 update = stats["QUERYHANDLER"]["/update"]["stats"]
 
-                for queryhkey, queryhvalue in queryhandlers.iteritems():
+                # if parameter queryhandleritems not defined in collector config send all
+                if self.config['queryhandleritems']:
+                   queryhitems = self.config['queryhandleritems']
+                else:
+                   queryhitems = queryhandlers.keys()
+
+                for queryhkey in queryhitems:
                     
                     for key in ("requests", "errors", "timeouts", "totalTime", "avgTimePerRequest", "avgRequestsPerSecond"):
                        
                        try: 
                            metrics.update({
                                "{0}queryhandler.{1}.{2}".format(path, queryhkey.replace("/","_").replace(".","_"), key):
-                               queryhvalue['stats'][key] 
+                               queryhandlers[queryhkey]['stats'][key] 
                            })
                        except (KeyError, ValueError, TypeError):
                            self.log.error("ERROR: non valid value for " + "{0}queryhandler.{1}.{2}".format(path, queryhkey, key) )
