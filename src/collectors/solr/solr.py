@@ -148,7 +148,7 @@ class SolrCollector(diamond.collector.Collector):
 
             if 'query' in self.config['stats']:
                 queryhandlers = stats["QUERYHANDLER"]
-                update = stats["QUERYHANDLER"]["/update"]["stats"]
+                # update = stats["QUERYHANDLER"]["/update"]["stats"]
 
                 # if parameter queryhandleritems not defined in collector config send all
                 if self.config['queryhandleritems']:
