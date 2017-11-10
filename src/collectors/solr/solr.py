@@ -148,26 +148,25 @@ class SolrCollector(diamond.collector.Collector):
 
             if 'query' in self.config['stats']:
                 queryhandlers = stats["QUERYHANDLER"]
-                # update = stats["QUERYHANDLER"]["/update"]["stats"]
+                update = stats["QUERYHANDLER"]["/update"]["stats"]
 
                 # if parameter queryhandleritems not defined in collector config send all
                 if self.config['queryhandleritems']:
-                    queryhitems = self.config['queryhandleritems']
+                   queryhitems = self.config['queryhandleritems']
                 else:
-                    queryhitems = queryhandlers.keys()
+                   queryhitems = queryhandlers.keys()
 
                 for queryhkey in queryhitems:
                     
                     for key in ("requests", "errors", "timeouts", "totalTime", "avgTimePerRequest", "avgRequestsPerSecond"):
                        
-                        try:
-                            metrics.update({
-                                "{0}queryhandler.{1}.{2}".format(path, queryhkey.replace("/","_").replace(".","_"), key):
-                                queryhandlers[queryhkey]['stats'][key]
-                            })
-                        except (KeyError, ValueError, TypeError):
-                            self.log.error("ERROR: non valid value for " + "{0}queryhandler.{1}.{2}".
-                                           format(path, queryhkey, key))
+                       try: 
+                           metrics.update({
+                               "{0}queryhandler.{1}.{2}".format(path, queryhkey.replace("/","_").replace(".","_"), key):
+                               queryhandlers[queryhkey]['stats'][key] 
+                           })
+                       except (KeyError, ValueError, TypeError):
+                           self.log.error("ERROR: non valid value for " + "{0}queryhandler.{1}.{2}".format(path, queryhkey, key) )
 
             if 'update' in self.config['stats']:
                 updatehandler = \
@@ -216,3 +215,4 @@ class SolrCollector(diamond.collector.Collector):
 
         for key in metrics:
             self.publish(key, metrics[key])
+            
