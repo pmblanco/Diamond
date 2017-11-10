@@ -34,6 +34,8 @@ class SolrCollector(diamond.collector.Collector):
             'host': "",
             'port': "",
             'core': "Which core info should collect (default: all cores)",
+            'solrpath': "solr URL path (default /solr)",
+            'queryhandleritems': "List of queryhandlers to collect",
             'stats': "Available stats: \n"
             " - core (Core stats)\n"
             " - response (Ping response stats)\n"
@@ -54,6 +56,8 @@ class SolrCollector(diamond.collector.Collector):
             'host':     'localhost',
             'port':     8983,
             'path':     'solr',
+            'solrpath': '/solr',
+            'queryhandleritems': [], 
             'core':     None,
             'stats':    ['jvm', 'core', 'response',
                          'query', 'update', 'cache'],
@@ -72,8 +76,8 @@ class SolrCollector(diamond.collector.Collector):
 
     def _get(self, path):
         path = path.lstrip('/')
-        url = 'http://%s:%i/%s' % (
-            self.config['host'], int(self.config['port']), path)
+        url = 'http://%s:%i%s/%s' % (
+            self.config['host'], int(self.config['port']), self.config['solrpath'], path)
         try:
             response = urllib2.urlopen(url)
         except Exception, err:
@@ -97,7 +101,7 @@ class SolrCollector(diamond.collector.Collector):
             cores = [self.config['core']]
         else:
             # If no core is specified, provide statistics for all cores
-            result = self._get('/solr/admin/cores?action=STATUS&wt=json')
+            result = self._get('/admin/cores?action=STATUS&wt=json')
             if result:
                 cores = result['status'].keys()
 
@@ -109,7 +113,7 @@ class SolrCollector(diamond.collector.Collector):
                 path = ""
 
             ping_url = posixpath.normpath(
-                "/solr/{0}/admin/ping?wt=json".format(core))
+                "/{0}/admin/ping?wt=json".format(core))
 
             if 'response' in self.config['stats']:
                 result = self._get(ping_url)
@@ -124,7 +128,7 @@ class SolrCollector(diamond.collector.Collector):
                 })
 
             stats_url = posixpath.normpath(
-                "/solr/{0}/admin/mbeans?stats=true&wt=json".format(core))
+                "/{0}/admin/mbeans?stats=true&wt=json".format(core))
 
             result = self._get(stats_url)
             if not result:
@@ -143,23 +147,27 @@ class SolrCollector(diamond.collector.Collector):
                 ])
 
             if 'query' in self.config['stats']:
-                standard = stats["QUERYHANDLER"]["standard"]["stats"]
-                update = stats["QUERYHANDLER"]["/update"]["stats"]
+                queryhandlers = stats["QUERYHANDLER"]
+                # update = stats["QUERYHANDLER"]["/update"]["stats"]
 
-                metrics.update([
-                    ("{0}queryhandler.standard.{1}".format(path, key),
-                     standard[key])
-                    for key in ("requests", "errors", "timeouts", "totalTime",
-                                "avgTimePerRequest", "avgRequestsPerSecond")
-                ])
+                # if parameter queryhandleritems not defined in collector config send all
+                if self.config['queryhandleritems']:
+                    queryhitems = self.config['queryhandleritems']
+                else:
+                    queryhitems = queryhandlers.keys()
 
-                metrics.update([
-                    ("{0}queryhandler.update.{1}".format(path, key),
-                     update[key])
-                    for key in ("requests", "errors", "timeouts", "totalTime",
-                                "avgTimePerRequest", "avgRequestsPerSecond")
-                    if update[key] != 'NaN'
-                ])
+                for queryhkey in queryhitems:
+                    
+                    for key in ("requests", "errors", "timeouts", "totalTime", "avgTimePerRequest", "avgRequestsPerSecond"):
+                       
+                        try:
+                            metrics.update({
+                                "{0}queryhandler.{1}.{2}".format(path, queryhkey.replace("/","_").replace(".","_"), key):
+                                queryhandlers[queryhkey]['stats'][key]
+                            })
+                        except (KeyError, ValueError, TypeError):
+                            self.log.error("ERROR: non valid value for " + "{0}queryhandler.{1}.{2}".
+                                           format(path, queryhkey, key))
 
             if 'update' in self.config['stats']:
                 updatehandler = \
@@ -193,7 +201,7 @@ class SolrCollector(diamond.collector.Collector):
 
             if 'jvm' in self.config['stats']:
                 system_url = posixpath.normpath(
-                    "/solr/{0}/admin/system?stats=true&wt=json".format(core))
+                    "/{0}/admin/system?stats=true&wt=json".format(core))
 
                 result = self._get(system_url)
                 if not result:
